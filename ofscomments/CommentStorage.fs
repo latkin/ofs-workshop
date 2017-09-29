@@ -46,3 +46,15 @@ module CommentStorage =
             |> Array.ofSeq
             |> Array.sortBy (fun c -> c.time)
 
+        // takes a user-provided comment and adds it to table storage,
+        // returning the final canonical version
+        member __.AddCommentForPost(comment: UserProvidedComment) =
+            let commentRow = TableRowComment(PartitionKey = (genPartitionKey comment.postid),
+                                        RowKey = Guid.NewGuid().ToString(),
+                                        Name = comment.name,
+                                        Comment = comment.comment,
+                                        CreatedAt = DateTimeOffset.UtcNow)
+
+            let result = table.Execute(TableOperation.Insert(commentRow))
+            (result.Result :?> TableRowComment) |> commentFromRow
+

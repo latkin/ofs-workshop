@@ -30,6 +30,7 @@ module Option = let defaultValue x = function None -> x | Some(v) -> v
 
 type CommentRequest =
     | GetComments of postId : string
+    | AddComment of comment : UserProvidedComment
     | Invalid of msg : string
     with
 
@@ -41,8 +42,35 @@ type CommentRequest =
             |> Seq.tryFind (fun q -> q.Key = "postid")
             |> Option.map (fun kvp -> GetComments(kvp.Value))
             |> Option.defaultValue (Invalid("postid parameter is required"))
+        elif req.Method = HttpMethod.Post then
+            let content =
+                req.Content.ReadAsStringAsync()
+                |> Async.AwaitTask
+                |> Async.RunSynchronously
+            try
+                match content with
+                | content when String.IsNullOrWhiteSpace(content) ->
+                    Invalid("Empty request body")
+                | content ->
+                    match JsonConvert.DeserializeObject<UserProvidedComment>(content) with
+                    | newComment when (box newComment) = null ->
+                        Invalid("Unable to deserialize comment")
+                    | newComment -> 
+                        if String.IsNullOrWhiteSpace(newComment.comment) ||
+                            String.IsNullOrWhiteSpace(newComment.name) ||
+                            String.IsNullOrWhiteSpace(newComment.postid) then
+                                Invalid("All fields must be populated")
+                        else
+                            AddComment(newComment)
+            with
+            | :? JsonReaderException -> Invalid("Unable to parse request body")
         else
             Invalid(sprintf "Unsupported HTTP method %O" req.Method)
+
+let okJson (req : HttpRequestMessage) body =
+    let response = req.CreateResponse(HttpStatusCode.OK)
+    response.Content <- new StringContent(JsonConvert.SerializeObject(body))
+    response
 
 let Run(req: HttpRequestMessage, log: TraceWriter) =
     async {
@@ -57,9 +85,17 @@ let Run(req: HttpRequestMessage, log: TraceWriter) =
 
                 log.Info(sprintf "Loaded %d comments for post %s" comments.Length postId)
 
-                let response = req.CreateResponse(HttpStatusCode.OK)
-                response.Content <- new StringContent(JsonConvert.SerializeObject(comments))
-                return response
+                return (okJson req comments)
+            | AddComment(newComment) ->
+                log.Info(sprintf "Request to add comment for post %s" newComment.postid)
+
+                // add new comment to table storage and return it back to the user
+                let storage = CommentStorage(Settings.load())
+                let finalComment = storage.AddCommentForPost(newComment)
+
+                log.Info(sprintf "Successfully added new comment to post %s" newComment.postid)
+
+                return (okJson req finalComment)
             | Invalid(msg) ->
                 log.Error(sprintf "Invalid request: %s" msg)
                 return req.CreateErrorResponse(HttpStatusCode.BadRequest, msg)

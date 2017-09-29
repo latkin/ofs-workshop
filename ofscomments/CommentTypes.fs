@@ -9,6 +9,14 @@ type Comment =
       name : string
       comment : string }
 
+// unsanitized raw form of comment, as submitted by users
+[<CLIMutableAttribute>]
+[<AllowNullLiteralAttribute>]
+type UserProvidedComment = 
+    { postid : string
+      name : string
+      comment : string }
+
 // comment implemented as TableEntity for interaction with
 // table storage
 type TableRowComment() =
