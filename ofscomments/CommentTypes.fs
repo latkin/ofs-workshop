@@ -13,7 +13,8 @@ type Comment =
 type UserProvidedComment = 
     { postid : string
       name : string
-      comment : string }
+      comment : string
+      captcha : string }
 
 // sanitized + pre-processed comment, ready for storage
 type PendingComment = 

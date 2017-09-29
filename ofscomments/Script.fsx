@@ -1,5 +1,6 @@
 ﻿#r "System.Net.Http"
 #r "Newtonsoft.Json"
+#r "System.Web"
 
 #if INTERACTIVE
 #r "../packages/Microsoft.Azure.WebJobs.2.0.0/lib/net45/Microsoft.Azure.WebJobs.Host.dll"
@@ -62,7 +63,8 @@ type CommentRequest =
                     | newComment -> 
                         if String.IsNullOrWhiteSpace(newComment.comment) ||
                             String.IsNullOrWhiteSpace(newComment.name) ||
-                            String.IsNullOrWhiteSpace(newComment.postid) then
+                            String.IsNullOrWhiteSpace(newComment.postid) ||
+                            String.IsNullOrWhiteSpace(newComment.captcha) then
                                 Invalid("All fields must be populated")
                         else
                             AddComment(newComment)
@@ -93,11 +95,12 @@ let Run(req: HttpRequestMessage, log: TraceWriter) =
             | AddComment(newComment) ->
                 log.Info(sprintf "Request to add comment for post %s" newComment.postid)
 
+                let settings = Settings.load()
                 // take the raw user data and process/sanitize it before storing
-                let pending = newComment |> Processing.userCommentToPending log
+                let! pending = newComment |> Processing.userCommentToPending log req settings
 
                 // add new comment to table storage and return it back to the user
-                let storage = CommentStorage(Settings.load())
+                let storage = CommentStorage(settings)
                 let finalComment = storage.AddCommentForPost(pending)
 
                 log.Info(sprintf "Successfully added new comment to post %s" newComment.postid)

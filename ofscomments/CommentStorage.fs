@@ -6,7 +6,8 @@ open Microsoft.WindowsAzure.Storage.Table
 
 type Settings =
     { StorageConnectionString : string
-      TableName : string }
+      TableName : string 
+      ReCaptchaSecret : string }
     with
 
     // grab various settings from app settings, exposed as env vars
@@ -14,7 +15,9 @@ type Settings =
         { StorageConnectionString =
             Environment.GetEnvironmentVariable("APPSETTING_ofs_comments_connectionstring")
           TableName =
-            Environment.GetEnvironmentVariable("APPSETTING_ofs_comments_tablename") }
+            Environment.GetEnvironmentVariable("APPSETTING_ofs_comments_tablename")
+          ReCaptchaSecret =
+            Environment.GetEnvironmentVariable("APPSETTING_ofs_comments_recaptchasecret") }
 
 module CommentStorage =
 
