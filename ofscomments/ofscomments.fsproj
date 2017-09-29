@@ -52,6 +52,7 @@
   <ItemGroup>
     <Compile Include="CommentTypes.fs" />
     <Compile Include="CommentStorage.fs" />
+    <Compile Include="Processing.fs" />
     <None Include="Script.fsx" />
     <Content Include="packages.config" />
   </ItemGroup>

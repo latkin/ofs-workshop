@@ -7,12 +7,15 @@
 #r "../packages/System.Web.Http.4.0.0/System.Web.Http.dll"
 #r "../packages/Newtonsoft.Json.10.0.3/lib/net45/Newtonsoft.Json.dll"
 #I "../packages/WindowsAzure.Storage.8.4.0/lib/net45"
+#r "../packages/HtmlSanitizer.3.4.156/lib/net45/HtmlSanitizer.dll"
+#r "../packages/AngleSharp.0.9.9/lib/net45/AngleSharp.dll"
 #endif
 
 #r "Microsoft.WindowsAzure.Storage"
 
 #load "CommentTypes.fs"
 #load "CommentStorage.fs"
+#load "Processing.fs"
 
 open System.Net
 open System.Net.Http
@@ -89,9 +92,12 @@ let Run(req: HttpRequestMessage, log: TraceWriter) =
             | AddComment(newComment) ->
                 log.Info(sprintf "Request to add comment for post %s" newComment.postid)
 
+                // take the raw user data and process/sanitize it before storing
+                let pending = newComment |> Processing.userCommentToPending log
+
                 // add new comment to table storage and return it back to the user
                 let storage = CommentStorage(Settings.load())
-                let finalComment = storage.AddCommentForPost(newComment)
+                let finalComment = storage.AddCommentForPost(pending)
 
                 log.Info(sprintf "Successfully added new comment to post %s" newComment.postid)
 
@@ -100,6 +106,9 @@ let Run(req: HttpRequestMessage, log: TraceWriter) =
                 log.Error(sprintf "Invalid request: %s" msg)
                 return req.CreateErrorResponse(HttpStatusCode.BadRequest, msg)
         with
+        | ProcessingExn(msg) ->
+            log.Error(sprintf "Processing error: %s" msg)
+            return req.CreateErrorResponse(HttpStatusCode.BadRequest, msg)
         | exn ->
             log.Error("Unknown error", exn)
             return req.CreateErrorResponse(HttpStatusCode.InternalServerError, "Unknown error")

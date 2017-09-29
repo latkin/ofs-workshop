@@ -32,7 +32,7 @@ module CommentStorage =
         let commentFromRow (row: TableRowComment) =
             { time = row.CreatedAt
               name = row.Name
-              comment = row.Comment }
+              comment = row.HtmlComment }
 
         // looks up all comments for the given post ID from table storage,
         // and returns them sorted by time, in canonical form
@@ -46,13 +46,14 @@ module CommentStorage =
             |> Array.ofSeq
             |> Array.sortBy (fun c -> c.time)
 
-        // takes a user-provided comment and adds it to table storage,
+        // takes a pending comment and adds it to table storage,
         // returning the final canonical version
-        member __.AddCommentForPost(comment: UserProvidedComment) =
+        member __.AddCommentForPost(comment: PendingComment) =
             let commentRow = TableRowComment(PartitionKey = (genPartitionKey comment.postid),
                                         RowKey = Guid.NewGuid().ToString(),
                                         Name = comment.name,
-                                        Comment = comment.comment,
+                                        RawComment = comment.commentRaw,
+                                        HtmlComment = comment.commentHtml,
                                         CreatedAt = DateTimeOffset.UtcNow)
 
             let result = table.Execute(TableOperation.Insert(commentRow))
