@@ -1,5 +1,6 @@
 var azureFuncUrl = 'https://lda-ofs-workshop.azurewebsites.net/api/ofs-comments';
 var ofs_postId = null;
+var recaptcha_token = "6Lf-TSEUAAAAAFU54AnUHOrVXnDz-EAESax0i0gN";
 
 // entry point
 function OFSCommentsInit(postId) {
@@ -37,6 +38,7 @@ function LoadCommentSubmission() {
     t += "<input type='text' id='ofs-submit-name'><br>";
     t += "Comment<br>";
     t += "<textarea id='ofs-submit-comment' cols='80' rows='10' /><br><br>";
+    t += "<div class='g-recaptcha' data-callback='CaptchaCallback' data-sitekey='" + recaptcha_token + "'></div>";
     t += "<input type='submit' id='ofs-submit-postcomment' value='Post comment'>";
     t += "</fieldset>";
     t += "</form>";
@@ -47,14 +49,15 @@ function LoadCommentSubmission() {
         e.preventDefault();
         SubmitAndRenderComment(ofs_postId, $("#ofs-submit-name").val(), $("#ofs-submit-comment").val());
     });
+    ToggleSubmissionControls(true, true, false);
 }
 
 // helper to disable/enable the various text boxes and buttons
 // used for submitting comments
-function ToggleSubmissionControls(enabled) {
-    $("#ofs-submit-name").prop("disabled", !enabled);
-    $("#ofs-submit-comment").prop("disabled", !enabled);
-    $("#ofs-submit-postcomment").prop("disabled", !enabled);
+function ToggleSubmissionControls(nameFieldEnabled, commentFieldEnabled, submitButtonEnabled) {
+    $("#ofs-submit-name").prop("disabled", !nameFieldEnabled);
+    $("#ofs-submit-comment").prop("disabled", !commentFieldEnabled);
+    $("#ofs-submit-postcomment").prop("disabled", !submitButtonEnabled);
 }
 
 // inserts a single comment
@@ -72,10 +75,11 @@ function AddSingleComment(comment) {
 
 // submits a single comment to the server
 function SubmitAndRenderComment(postId, name, comment) {
-    ToggleSubmissionControls(false);
+    ToggleSubmissionControls(false, false, false);
+    var capResponse = grecaptcha.getResponse();
 
     $.ajax(azureFuncUrl, {
-        data: JSON.stringify({ postid: postId, name: name, comment: comment }),
+        data: JSON.stringify({ postid: postId, name: name, comment: comment, captcha: capResponse }),
         type: "POST",
         contentType: "application/json",
         dataType: "json",
@@ -83,7 +87,8 @@ function SubmitAndRenderComment(postId, name, comment) {
             AddSingleComment(data);
             $("#ofs-submit-name").val("");
             $("#ofs-submit-comment").val("");
-            ToggleSubmissionControls(true);
+            ToggleSubmissionControls(true, true, false);
+            grecaptcha.reset();
         },
         error: function (err) {
             var data = $.parseJSON(err.responseText);
@@ -92,7 +97,13 @@ function SubmitAndRenderComment(postId, name, comment) {
             } else {
                 $("#ofs-commentlist").append("<div class='ofs-error'>Error adding comment</div>");
             }
-            ToggleSubmissionControls(true);
+            ToggleSubmissionControls(true, true, false);
+            grecaptcha.reset();
         }
     });
+}
+
+// enable the "submit" button when the CAPTCHA is clicked
+function CaptchaCallback(token) {
+    ToggleSubmissionControls(true, true, true);
 }
