@@ -1,19 +1,39 @@
-var script = document.createElement('script');
-script.src = 'https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js';
-script.type = 'text/javascript';
-document.getElementsByTagName('head')[0].appendChild(script);
-
 var azureFuncUrl = 'https://lda-ofs-workshop.azurewebsites.net/api/ofs-comments';
+var ofs_postId = null;
 
-function OnClick() {
-    if (!azureFuncUrl) {
-        alert('URL not set! Edit ofscomments.js');
-    } else {
-        $.ajax(azureFuncUrl, {
-            type: "POST",
-            data: JSON.stringify({ name: "open fsharp conf" }),
-            success: function (data, textStatus, jqXHR) { alert('Sent message to F# Azure Function!\nResponse:\n' + data); },
-            error: function (jqXHR, textStatus, errorThrown) { alert('Failed to send message!\n' + textStatus); }
-        });
-    }
+// entry point
+function OFSCommentsInit(postId) {
+    ofs_postId = postId;
+    $("#ofs-comments").append("<div id='ofs-commentlist'/>");
+
+    LoadComments();
+}
+
+// pulls down array of comments for this post and inserts them
+function LoadComments() {
+    var url = azureFuncUrl + "?postid=" + ofs_postId;
+    $.ajax(url, {
+        dataType: "json",
+        success: function (comments) {
+            $.each(comments, function (i, comment) {
+                AddSingleComment(comment);
+            });
+        },
+        error: function () {
+            $("#ofs-commentlist").append("<div class='ofs-error'>Error retrieving comments.</div>");
+        }
+    });
+}
+
+// inserts a single comment
+function AddSingleComment(comment) {
+    var date = new Date(comment.time);
+    var t = "<div class='ofs-comment'>";
+    t += "<div class='ofs-commentheader'><b>" + comment.name + "</b>";
+    t += " posted at ";
+    t += "<em>" + date.toLocaleString() + "</em></div>";
+    t += "<div class='ofs-commentbody'>";
+    t += comment.comment;
+    t += "</div>";
+    $("#ofs-commentlist").append(t);
 }
