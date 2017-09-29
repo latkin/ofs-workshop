@@ -1,13 +1,18 @@
 ﻿#r "System.Net.Http"
 #r "Newtonsoft.Json"
-#load "CommentTypes.fs"
 
 #if INTERACTIVE
 #r "../packages/Microsoft.Azure.WebJobs.2.0.0/lib/net45/Microsoft.Azure.WebJobs.Host.dll"
 #r "../packages/System.Net.Http.Formatting.Extension.5.2.3.0/lib/System.Net.Http.Formatting.dll"
 #r "../packages/System.Web.Http.4.0.0/System.Web.Http.dll"
 #r "../packages/Newtonsoft.Json.10.0.3/lib/net45/Newtonsoft.Json.dll"
+#I "../packages/WindowsAzure.Storage.8.4.0/lib/net45"
 #endif
+
+#r "Microsoft.WindowsAzure.Storage"
+
+#load "CommentTypes.fs"
+#load "CommentStorage.fs"
 
 open System.Net
 open System.Net.Http
@@ -18,6 +23,7 @@ open System.Collections.Generic
 open Microsoft.Azure.WebJobs.Host
 
 open OFS.Comments
+open OFS.Comments.CommentStorage
 
 // define this since Azure Functions aren't running F# 4.1
 module Option = let defaultValue x = function None -> x | Some(v) -> v
@@ -45,18 +51,9 @@ let Run(req: HttpRequestMessage, log: TraceWriter) =
             | GetComments(postId) ->
                 log.Info(sprintf "Request to get comments for post %s" postId)
 
-                // just return some dummy data
-                let comments = [|
-                    { time = DateTimeOffset.UtcNow.AddHours(-2.)
-                      name = "Sue"
-                      comment = "abc" }
-                    { time = DateTimeOffset.UtcNow.AddHours(-1.)
-                      name = "Joe"
-                      comment = "123" }
-                    { time = DateTimeOffset.UtcNow
-                      name = "Rex"
-                      comment = "xyz" }
-                |]
+                // load comments from table storage for the specified post
+                let storage = CommentStorage(Settings.load())
+                let comments = storage.GetCommentsForPost(postId)
 
                 log.Info(sprintf "Loaded %d comments for post %s" comments.Length postId)
 
