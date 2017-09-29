@@ -2,6 +2,7 @@
 
 open System
 open Ganss.XSS // need to add ref in project.json "HtmlSanitizer": "3.4.156"
+open Markdig // need to add ref in project.json "MarkDig": "0.11.0"
 open Microsoft.Azure.WebJobs.Host
 
 exception ProcessingExn of string
@@ -12,9 +13,15 @@ module Processing =
 
     let private bodySanitizer = HtmlSanitizer()
     let private nameSanitizer = HtmlSanitizer(allowedTags = [])
+    let private mdPipeline =
+        MarkdownPipelineBuilder()
+            .UseAdvancedExtensions()
+            .UseEmojiAndSmiley()
+            .Build()
 
     let private sanitizeBody str = bodySanitizer.Sanitize(str)
     let private sanitizeName str = nameSanitizer.Sanitize(str)
+    let private markdownToHtml str = Markdown.ToHtml(str, mdPipeline)
 
     let private check name maxLen str =
         if String.IsNullOrWhiteSpace(str) || str.Length > maxLen then
@@ -34,6 +41,7 @@ module Processing =
 
         let htmlComment =
             userComment.comment
+            |> markdownToHtml
             |> sanitizeBody
             |> check "comment" 2048
 

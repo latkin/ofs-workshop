@@ -9,6 +9,7 @@
 #I "../packages/WindowsAzure.Storage.8.4.0/lib/net45"
 #r "../packages/HtmlSanitizer.3.4.156/lib/net45/HtmlSanitizer.dll"
 #r "../packages/AngleSharp.0.9.9/lib/net45/AngleSharp.dll"
+#r "../packages/Markdig.0.11.0/lib/net40/Markdig.dll"
 #endif
 
 #r "Microsoft.WindowsAzure.Storage"
